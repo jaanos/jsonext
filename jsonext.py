@@ -1,17 +1,19 @@
-from datetime import datetime
-from json import JSONDecoder, JSONEncoder
-from json.decoder import errmsg, WHITESPACE, WHITESPACE_STR
-from json.scanner import NUMBER_RE
-import re
+from datetime import datetime as _datetime
+import json as _json
+from json.decoder import errmsg as _errmsg
+from json.decoder import WHITESPACE as _WHITESPACE
+from json.decoder import WHITESPACE_STR as _WHITESPACE_STR
+from json.scanner import NUMBER_RE as _NUMBER_RE
+import re as _re
 
-STRUCT_RE = re.compile(r'([A-Z]\w*)\(')
+_STRUCT_RE = _re.compile(r'([A-Z]\w*)\(')
 
-def make_scanner(context):
+def _make_scanner(context):
     parse_object = context.parse_object
     parse_struct = context.parse_struct
     parse_array = context.parse_array
     parse_string = context.parse_string
-    match_number = NUMBER_RE.match
+    match_number = _NUMBER_RE.match
     encoding = context.encoding
     strict = context.strict
     parse_float = context.parse_float
@@ -56,7 +58,7 @@ def make_scanner(context):
         elif nextchar == '-' and string[idx:idx + 9] == '-Infinity':
             return parse_constant('-Infinity'), idx + 9
 
-        m = STRUCT_RE.match(string, idx)
+        m = _STRUCT_RE.match(string, idx)
         if m is not None:
             return parse_struct((string, m.end()), m.group(1), encoding,
                                 strict, _scan_once, struct_hook)
@@ -65,8 +67,8 @@ def make_scanner(context):
 
     return _scan_once
 
-def JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
-               _w = WHITESPACE.match, _ws = WHITESPACE_STR):
+def _JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
+                _w = _WHITESPACE.match, _ws = _WHITESPACE_STR):
     s, end = s_and_end
     start = end
     values = []
@@ -83,7 +85,7 @@ def JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
             try:
                 value, end = scan_once(s, end)
             except StopIteration:
-                raise ValueError(errmsg("Expecting object", s, end))
+                raise ValueError(_errmsg("Expecting object", s, end))
             _append(value)
             nextchar = s[end:end + 1]
             if nextchar in _ws:
@@ -93,7 +95,7 @@ def JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
             if nextchar == ')':
                 break
             elif nextchar != ',':
-                raise ValueError(errmsg("Expecting ',' delimiter", s, end))
+                raise ValueError(_errmsg("Expecting ',' delimiter", s, end))
             try:
                 if s[end] in _ws:
                     end += 1
@@ -104,23 +106,57 @@ def JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
     try:
         return struct_hook(name, values), end
     except NotImplementedError:
-        raise ValueError(errmsg("Unsupported type %s" % name, s, start))
+        raise ValueError(_errmsg("Unsupported type %s" % name, s, start))
     except ValueError as ex:
         raise ex
     except Exception as ex:
-        raise ValueError(errmsg("Parse error: %s" % str(ex), s, start))
+        raise ValueError(_errmsg("Parse error: %s" % str(ex), s, start))
 
 def date_hook(name, values):
     try:
         if name == "Date":
-            return datetime.fromtimestamp(int(values[0])/1000)
+            return _datetime.fromtimestamp(int(values[0])/1000.)
     except (NotImplementedError, ValueError) as ex:
         raise Exception(str(ex))
     raise NotImplementedError
 
-class JSONExtDecoder(JSONDecoder):
+class JSONExtDecoder(_json.JSONDecoder):
     def __init__(self, struct_hook = date_hook, *args, **kargs):
-        JSONDecoder.__init__(self, *args, **kargs)
+        _json.JSONDecoder.__init__(self, *args, **kargs)
         self.struct_hook = struct_hook
-        self.parse_struct = JSONStruct
-        self.scan_once = make_scanner(self)
+        self.parse_struct = _JSONStruct
+        self.scan_once = _make_scanner(self)
+
+class _DateInt(int):
+    def __str__(self):
+        return "Date(%s%03d)" % (self.d.strftime('%s'), self.d.microsecond/1000)
+
+def date_encode(o, encode):
+    if isinstance(o, _datetime):
+        di = _DateInt()
+        di.d = o
+        return di
+    raise NotImplementedError
+
+class JSONExtEncoder(_json.JSONEncoder):
+    def __init__(self, struct_encode = date_encode, *args, **kargs):
+        _json.JSONEncoder.__init__(self, *args, **kargs)
+        self.struct_encode = struct_encode
+
+    def default(self, o):
+        try:
+            return self.struct_encode(o, self.encode)
+        except NotImplementedError:
+            return _json.JSONEncoder.encode(self, o)
+
+def dump(obj, fp, cls = JSONExtEncoder, *args, **kargs):
+    return _json.dump(obj, fp, cls = cls, *args, **kargs)
+
+def dumps(obj, cls = JSONExtEncoder, *args, **kargs):
+    return _json.dumps(obj, cls = cls, *args, **kargs)
+
+def load(fp, cls = JSONExtDecoder, *args, **kargs):
+    return _json.load(fp, cls = cls, *args, **kargs)
+
+def loads(s, cls = JSONExtDecoder, *args, **kargs):
+    return _json.loads(s, cls = cls, *args, **kargs)
