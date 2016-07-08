@@ -14,14 +14,19 @@ def _make_scanner(context):
     parse_array = context.parse_array
     parse_string = context.parse_string
     match_number = _NUMBER_RE.match
-    encoding = context.encoding
-    strict = context.strict
     parse_float = context.parse_float
     parse_int = context.parse_int
     parse_constant = context.parse_constant
     object_hook = context.object_hook
     object_pairs_hook = context.object_pairs_hook
     struct_hook = context.struct_hook
+
+    params = []
+    try:
+        params.append(context.encoding)
+    except AttributeError:
+        pass
+    params.append(context.strict)
 
     def _scan_once(string, idx):
         try:
@@ -30,10 +35,10 @@ def _make_scanner(context):
             raise StopIteration
 
         if nextchar == '"':
-            return parse_string(string, idx + 1, encoding, strict)
+            return parse_string(*([string, idx + 1] + params))
         elif nextchar == '{':
-            return parse_object((string, idx + 1), encoding, strict,
-                _scan_once, object_hook, object_pairs_hook)
+            return parse_object(*([(string, idx + 1)] + params +
+                [_scan_once, object_hook, object_pairs_hook]))
         elif nextchar == '[':
             return parse_array((string, idx + 1), _scan_once)
         elif nextchar == 'n' and string[idx:idx + 4] == 'null':
@@ -60,14 +65,14 @@ def _make_scanner(context):
 
         m = _STRUCT_RE.match(string, idx)
         if m is not None:
-            return parse_struct((string, m.end()), m.group(1), encoding,
-                                strict, _scan_once, struct_hook)
+            return parse_struct((string, m.end()), m.group(1),
+                                _scan_once, struct_hook)
         else:
             raise StopIteration
 
     return _scan_once
 
-def _JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
+def _JSONStruct(s_and_end, name, scan_once, struct_hook,
                 _w = _WHITESPACE.match, _ws = _WHITESPACE_STR):
     s, end = s_and_end
     start = end
