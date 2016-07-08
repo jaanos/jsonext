@@ -158,7 +158,7 @@ class JSONExtEncoder(_json.JSONEncoder):
             si.values = [self.encode(v) for v in values]
             return si
         except NotImplementedError:
-            return _json.JSONEncoder.encode(self, o)
+            return _json.JSONEncoder.default(self, o)
 
 def dump(obj, fp, cls = JSONExtEncoder, *args, **kargs):
     return _json.dump(obj, fp, cls = cls, *args, **kargs)
