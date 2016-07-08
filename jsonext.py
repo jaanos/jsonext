@@ -112,16 +112,20 @@ def _JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
     except Exception as ex:
         raise ValueError(_errmsg("Parse error: %s" % str(ex), s, start))
 
-def date_hook(name, values):
+def struct_hook(name, values):
     try:
         if name == "Date":
             return _datetime.fromtimestamp(int(values[0])/1000.)
+        elif name == "Set":
+            return set(values[0])
+        elif name == "Error":
+            return Exception(*values)
     except (NotImplementedError, ValueError) as ex:
         raise Exception(str(ex))
     raise NotImplementedError
 
 class JSONExtDecoder(_json.JSONDecoder):
-    def __init__(self, struct_hook = date_hook, *args, **kargs):
+    def __init__(self, struct_hook = struct_hook, *args, **kargs):
         _json.JSONDecoder.__init__(self, *args, **kargs)
         self.struct_hook = struct_hook
         self.parse_struct = _JSONStruct
@@ -131,14 +135,18 @@ class StructInt(int):
     def __str__(self):
         return "%s(%s)" % (self.name, ', '.join(self.values))
 
-def date_encode(o):
+def struct_encode(o):
     if isinstance(o, _datetime):
         return ("Date", (int("%s%03d" % (o.strftime('%s'),
                                          o.microsecond/1000)), ))
+    elif isinstance(o, (set, frozenset)):
+        return ("Set", (list(o), ))
+    elif isinstance(o, BaseException):
+        return ("Error", o.args)
     raise NotImplementedError
 
 class JSONExtEncoder(_json.JSONEncoder):
-    def __init__(self, struct_encode = date_encode, *args, **kargs):
+    def __init__(self, struct_encode = struct_encode, *args, **kargs):
         _json.JSONEncoder.__init__(self, *args, **kargs)
         self.struct_encode = struct_encode
 
