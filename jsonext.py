@@ -6,7 +6,7 @@ from json.decoder import WHITESPACE_STR as _WHITESPACE_STR
 from json.scanner import NUMBER_RE as _NUMBER_RE
 import re as _re
 
-_STRUCT_RE = _re.compile(r'([A-Z]\w*)\(')
+_STRUCT_RE = _re.compile(r'([A-Z]\w*)\s*\(')
 
 def _make_scanner(context):
     parse_object = context.parse_object
@@ -127,15 +127,14 @@ class JSONExtDecoder(_json.JSONDecoder):
         self.parse_struct = _JSONStruct
         self.scan_once = _make_scanner(self)
 
-class _DateInt(int):
+class StructInt(int):
     def __str__(self):
-        return "Date(%s%03d)" % (self.d.strftime('%s'), self.d.microsecond/1000)
+        return "%s(%s)" % (self.name, ', '.join(self.values))
 
-def date_encode(o, encode):
+def date_encode(o):
     if isinstance(o, _datetime):
-        di = _DateInt()
-        di.d = o
-        return di
+        return ("Date", (int("%s%03d" % (o.strftime('%s'),
+                                         o.microsecond/1000)), ))
     raise NotImplementedError
 
 class JSONExtEncoder(_json.JSONEncoder):
@@ -145,7 +144,11 @@ class JSONExtEncoder(_json.JSONEncoder):
 
     def default(self, o):
         try:
-            return self.struct_encode(o, self.encode)
+            name, values = self.struct_encode(o)
+            si = StructInt()
+            si.name = name
+            si.values = [self.encode(v) for v in values]
+            return si
         except NotImplementedError:
             return _json.JSONEncoder.encode(self, o)
 
