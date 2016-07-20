@@ -112,12 +112,23 @@ def _JSONStruct(s_and_end, name, encoding, strict, scan_once, struct_hook,
     except Exception as ex:
         raise ValueError(_errmsg("Parse error: %s" % str(ex), s, start))
 
+def freeze(val):
+    if val.__hash__ is not None:
+        return val
+    if isinstance(val, list):
+        return tuple([freeze(x) for x in val])
+    elif isinstance(val, dict):
+        return frozenset((freeze(k), freeze(v)) for k, v in val.items())
+    elif isinstance(val, set):
+        return frozenset(freeze(x) for x in val)
+    return val
+
 def struct_hook(name, values):
     try:
         if name == "Date":
             return _datetime.fromtimestamp(int(values[0])/1000.)
         elif name == "Set":
-            return set(values[0])
+            return frozenset(freeze(values[0]))
         elif name == "Error":
             return Exception(*values)
     except (NotImplementedError, ValueError) as ex:
