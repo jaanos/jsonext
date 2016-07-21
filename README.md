@@ -27,6 +27,9 @@ class ObjectId:
     def __repr__(self):
         return "ObjectId(%s)" % repr(self.id)
 
+    def __hash__(self):
+        return hash(self.id)
+
 def struct_hook(name, values):
     if name == "ObjectId":
         return ObjectId(values[0])
@@ -39,10 +42,10 @@ def struct_encode(o):
 ```
 
 ```python
->>> json_str = '[ObjectId("abcdef"), ObjectId( 123 ), ObjectId(ObjectId(true))]'
+>>> json_str = '[ObjectId("abcdef"), Set([ ObjectId( 123 ) ]), ObjectId(ObjectId(true))]'
 >>> json_obj = jsonext.loads(json_str, struct_hook = struct_hook)
 >>> json_obj
-[ObjectId(u'abcdef'), ObjectId(123), ObjectId(ObjectId(True))]
+[ObjectId(u'abcdef'), frozenset({ObjectId(123)}), ObjectId(ObjectId(True))]
 >>> jsonext.dumps(json_obj, struct_encode = struct_encode)
-'[ObjectId("abcdef"), ObjectId(123), ObjectId(ObjectId(true))]'
+'[ObjectId("abcdef"), Set([ObjectId(123)]), ObjectId(ObjectId(true))]'
 ```
