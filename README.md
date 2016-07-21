@@ -30,6 +30,12 @@ class ObjectId:
     def __hash__(self):
         return hash(self.id)
 
+    def __eq__(self, other):
+        if isinstance(other, ObjectId):
+            return self.id == other.id
+        else:
+            return self.id == other
+
 def struct_hook(name, values):
     if name == "ObjectId":
         return ObjectId(values[0])
