@@ -151,6 +151,9 @@ class StructInt(int):
     def __str__(self):
         return "%s(%s)" % (self.name, ', '.join(self.values))
 
+    def __int__(self):
+        return self
+
 def struct_encode(o):
     if isinstance(o, _datetime):
         return ("Date", (int("%s%03d" % (o.strftime('%s'),
