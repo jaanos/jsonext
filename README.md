@@ -1,7 +1,7 @@
 # jsonext
 An extendable JSON parser for Python supporting the Date, Set and Error types
 
-Works with Python 2.7. A partially working version for Python 3 (decoder only) is available in the `python3` branch.
+Works with Python 2.7 and Python 3.x.
 
 ## Examples
 
